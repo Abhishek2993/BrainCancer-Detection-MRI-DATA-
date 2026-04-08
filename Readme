@@ -2,7 +2,7 @@
 ### Brain Cancer Detection & Care · MRI-based early detection · diagnosis · treatment cost · doctor recommendations
 
 ![TensorFlow](https://img.shields.io/badge/TensorFlow-Keras-orange) ![Model](https://img.shields.io/badge/Model-ResNet50%20%7C%20MobileNetV2-purple) ![Platform](https://img.shields.io/badge/Platform-Google%20Colab-blue) ![License](https://img.shields.io/badge/License-MIT-green)
-
+.
 ---
 
 > ⚠️ **Disclaimer:** BCDC is a research and educational tool. It is not a substitute for professional medical diagnosis. Always consult a qualified medical professional for any health concerns.

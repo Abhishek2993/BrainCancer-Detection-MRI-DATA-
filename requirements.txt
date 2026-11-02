@@ -6,3 +6,8 @@ pillow
 matplotlib
 scikit-learn
 kagglehub
+h5py
+scipy
+
+# development
+pytest

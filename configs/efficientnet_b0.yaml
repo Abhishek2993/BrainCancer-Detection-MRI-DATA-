@@ -1,0 +1,21 @@
+# Same recipe with efficientnet_b0, 3 seeds. Usage: bcdc train --config configs/efficientnet_b0.yaml
+data:
+  dataset_path: null            # null = download the Kaggle dataset with kagglehub
+  split_csv: outputs/split.csv  # created automatically if missing
+model:
+  backbone: efficientnet_b0
+  img_size: [224, 224]
+  weights: imagenet
+training:
+  seeds: [0, 1, 2]
+  batch_size: 32
+  head_epochs: 15
+  head_lr: 0.001
+  finetune_epochs: 20
+  finetune_lr: 1.0e-5
+  top_fraction: 0.35
+  patience: 4
+output_dir: outputs/efficientnet_b0
+tracking:
+  backend: local                # none | local | mlflow | wandb
+  project: bcdc

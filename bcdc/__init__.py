@@ -14,6 +14,13 @@ Shared code for the project notebooks:
 * ``train``     - the shared two-stage transfer-learning recipe
 * ``edge``      - TensorFlow Lite export (FP32/FP16/dynamic/INT8), inference, latency, Pareto front
 * ``federated`` - FedAvg / FedProx simulation with IID and Dirichlet (non-IID) hospital splits
+* ``split``     - data audit and leakage-aware split (Phase 0 logic as a library)
+* ``tracking``  - experiment tracking (local JSON, MLflow, Weights & Biases)
+* ``dicom``     - DICOM to image conversion without exposing patient fields
+* ``deploy``    - deployment bundles (models + temperature + conformal + OOD settings)
+* ``inference`` - the Predictor used by the CLI, API and demo
+* ``report``    - retrieval-grounded explanation reports with citations
+* ``api`` / ``demo`` / ``cli`` - FastAPI backend, Gradio demo, ``bcdc`` command
 """
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"

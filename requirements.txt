@@ -1,3 +1,4 @@
+# Everything (notebooks, CLI, API, demo, tests). Equivalent to: pip install -e ".[all]"
 # Tested with TensorFlow 2.21 / Keras 3 (Google Colab ships compatible versions)
 tensorflow>=2.16
 numpy
@@ -5,10 +6,18 @@ pandas
 pillow
 matplotlib
 scikit-learn
+pyyaml
 kagglehub
 h5py
 scipy
 ai-edge-litert   # TFLite interpreter (LiteRT); falls back to tf.lite if missing
+pydicom
+fastapi
+uvicorn
+python-multipart
+gradio
+mlflow           # optional experiment tracking
 
 # development
 pytest
+httpx

@@ -1,0 +1,62 @@
+{
+  "about": "Curated, cited background passages for BCDC explanation reports. Every passage is general patient information taken from the cited source; none of it is advice about an individual. Review the passages against the sources before any real-world use.",
+  "sources": {
+    "who_cns5": {
+      "citation": "Louis DN, Perry A, Wesseling P, et al. The 2021 WHO Classification of Tumors of the Central Nervous System: a summary. Neuro-Oncology. 2021;23(8):1231-1251.",
+      "url": "https://doi.org/10.1093/neuonc/noab106"
+    },
+    "eano_glioma": {
+      "citation": "Weller M, van den Bent M, Preusser M, et al. EANO guidelines on the diagnosis and treatment of diffuse gliomas of adulthood. Nature Reviews Clinical Oncology. 2021;18(3):170-186.",
+      "url": "https://doi.org/10.1038/s41571-020-00447-z"
+    },
+    "eano_meningioma": {
+      "citation": "Goldbrunner R, Stavrinou P, Jenkinson MD, et al. EANO guideline on the diagnosis and management of meningiomas. Neuro-Oncology. 2021;23(11):1821-1834.",
+      "url": "https://doi.org/10.1093/neuonc/noab150"
+    },
+    "nci_pdq": {
+      "citation": "National Cancer Institute. Adult Central Nervous System Tumors Treatment (PDQ®), Patient Version.",
+      "url": "https://www.cancer.gov/types/brain/patient/adult-brain-treatment-pdq"
+    },
+    "cbtrus": {
+      "citation": "Ostrom QT, Price M, Neff C, et al. CBTRUS Statistical Report: Primary Brain and Other Central Nervous System Tumors Diagnosed in the United States in 2016-2020. Neuro-Oncology. 2023;25(Suppl 4):iv1-iv99.",
+      "url": "https://doi.org/10.1093/neuonc/noad149"
+    },
+    "bcdc": {
+      "citation": "BCDC project documentation (this repository): dataset description and model card.",
+      "url": "https://github.com/Abhishek2993/BrainCancer-Detection-MRI-DATA-/blob/main/MODEL_CARD.md"
+    }
+  },
+  "passages": [
+    {"id": "glioma_definition", "classes": ["brain_glioma"], "source": "who_cns5",
+     "text": "Gliomas are tumours that arise from glial cells, the supporting cells of the brain. The 2021 WHO classification groups the main adult diffuse gliomas into three types: astrocytoma, IDH-mutant; oligodendroglioma, IDH-mutant and 1p/19q-codeleted; and glioblastoma, IDH-wildtype."},
+    {"id": "glioma_grading", "classes": ["brain_glioma"], "source": "who_cns5",
+     "text": "Under the 2021 WHO classification, gliomas are graded using both how the tumour tissue looks under the microscope and molecular markers such as IDH mutation status."},
+    {"id": "glioma_diagnosis", "classes": ["brain_glioma"], "source": "eano_glioma",
+     "text": "MRI with and without contrast is the standard imaging test when a glioma is suspected, but the diagnosis, type and grade are confirmed from tumour tissue obtained by biopsy or surgery, including molecular testing."},
+    {"id": "glioma_management", "classes": ["brain_glioma"], "source": "eano_glioma",
+     "text": "Treatment of a diffuse glioma depends on the tumour type, grade and molecular markers, as well as the person's age and general health. It may include surgery, radiotherapy and chemotherapy, and is usually planned by a multidisciplinary team."},
+    {"id": "meningioma_definition", "classes": ["brain_menin"], "source": "who_cns5",
+     "text": "Meningiomas arise from the meninges, the membranes that surround the brain and spinal cord. The 2021 WHO classification grades meningiomas from 1 to 3, and most are grade 1 and slow-growing."},
+    {"id": "meningioma_frequency", "classes": ["brain_menin"], "source": "cbtrus",
+     "text": "Meningioma is the most frequently reported primary brain and other central nervous system tumour in the United States."},
+    {"id": "meningioma_imaging", "classes": ["brain_menin"], "source": "eano_meningioma",
+     "text": "On MRI, meningiomas usually appear as well-defined masses attached to the dura that enhance after contrast is given, but imaging alone cannot determine the grade."},
+    {"id": "meningioma_management", "classes": ["brain_menin"], "source": "eano_meningioma",
+     "text": "Small meningiomas that cause no symptoms are often monitored with repeat MRI scans rather than treated straight away. When treatment is needed, surgery is the main option, and radiotherapy may also be used."},
+    {"id": "unspecified_label", "classes": ["brain_tumor"], "source": "bcdc",
+     "text": "The training dataset labels this class only as 'brain tumour' and does not document which tumour type it contains, so this result does not indicate a specific diagnosis."},
+    {"id": "imaging_not_enough", "classes": ["*"], "source": "who_cns5",
+     "text": "The exact type of a brain tumour cannot be established from imaging alone; the WHO classification relies on examination of tumour tissue, increasingly combined with molecular tests."},
+    {"id": "care_team", "classes": ["*"], "source": "nci_pdq",
+     "text": "The symptoms and treatment of a brain tumour depend on its type, size and location. Care is usually planned by a team that can include a neurosurgeon, neuro-oncologist, radiation oncologist and neuroradiologist."}
+  ],
+  "questions": [
+    "What do my scans show, and does the radiologist's report agree with this software's result?",
+    "Is a biopsy or surgery needed to confirm the type and grade of the tumour?",
+    "Which molecular tests will be done on the tissue, and how could the results change the plan?",
+    "What are the treatment options, and what are the aims and side effects of each?",
+    "Is monitoring with repeat MRI an option, and how often would scans be needed?",
+    "Will my case be reviewed by a multidisciplinary tumour board?",
+    "Are there clinical trials I might be eligible for?"
+  ]
+}

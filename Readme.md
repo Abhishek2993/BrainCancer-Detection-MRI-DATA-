@@ -1,8 +1,8 @@
 # BCDC: Brain Cancer Detection & Classification
 
-### Trustworthy, edge-ready 3-class brain-tumour MRI classification: leakage-aware evaluation, external validation, calibrated uncertainty, conformal prediction, OOD rejection, verified explanations, INT8 edge deployment and federated learning
+### Trustworthy, edge-ready 3-class brain-tumour MRI classification: leakage-aware evaluation, external validation, calibrated uncertainty, conformal prediction, OOD rejection, verified explanations, INT8 edge deployment, federated learning, plus a CLI, REST API and demo with DICOM input and cited explanation reports
 
-![TensorFlow](https://img.shields.io/badge/TensorFlow-Keras%203-orange) ![Model](https://img.shields.io/badge/Models-MobileNet%20%7C%20EfficientNet%20%7C%20ConvNeXt-purple) ![Edge](https://img.shields.io/badge/Edge-TFLite%20%2F%20LiteRT%20INT8-teal) ![Platform](https://img.shields.io/badge/Platform-Google%20Colab-blue) ![Status](https://img.shields.io/badge/Status-Phase%202%20(edge)-yellow) ![License](https://img.shields.io/badge/License-MIT-green)
+![TensorFlow](https://img.shields.io/badge/TensorFlow-Keras%203-orange) ![Model](https://img.shields.io/badge/Models-MobileNet%20%7C%20EfficientNet%20%7C%20ConvNeXt-purple) ![Edge](https://img.shields.io/badge/Edge-TFLite%20%2F%20LiteRT%20INT8-teal) ![Platform](https://img.shields.io/badge/Platform-Google%20Colab-blue) ![Status](https://img.shields.io/badge/Status-Phase%203%20(product)-yellow) ![API](https://img.shields.io/badge/API-FastAPI-009688) ![Demo](https://img.shields.io/badge/Demo-Gradio-orange) ![License](https://img.shields.io/badge/License-MIT-green)
 
 | Notebook | Open |
 |---|---|
@@ -25,6 +25,11 @@ Most student projects aim for the highest possible accuracy number. This one aim
 - **Phase 0 (correctness):** duplicate audit, leakage-aware split, held-out test set, multi-seed results, clinically relevant per-class metrics, calibrated confidence.
 - **Phase 1 (rigour):** a deep ensemble with uncertainty estimates, **conformal prediction sets** with a coverage guarantee, **external validation** on a second dataset from different hospitals, **out-of-distribution rejection**, and **Grad-CAM checked against radiologist tumour masks**.
 - **Phase 2 (edge):** five lightweight backbones × four TFLite precisions (FP32, FP16, dynamic, **INT8**). For each variant: accuracy, glioma sensitivity, **calibration and conformal coverage**, size and latency, plus a Pareto front. Includes a **Raspberry Pi / Jetson benchmark bundle** and a **federated learning** simulation of hospitals training together without sharing scans.
+- **Phase 3 (product):**
+  - an installable package with a **`bcdc` command-line tool** (split → train → calibrate → predict → serve), YAML configs and experiment tracking (local, MLflow or Weights & Biases);
+  - **deployment bundles**, a **FastAPI** backend and a **Gradio** demo for Hugging Face Spaces, all accepting **DICOM** input;
+  - a **retrieval-grounded explanation report** that quotes only cited sources;
+  - a **[model card](MODEL_CARD.md)**.
 
 See the [Roadmap](#roadmap) for what comes next.
 
@@ -36,7 +41,11 @@ See the [Roadmap](#roadmap) for what comes next.
 ├── Project_BCDCipynb.ipynb   # Phase 0: audit, split, train (multi-seed), evaluate, calibrate
 ├── Phase1_Rigour.ipynb       # Phase 1: ensemble, conformal, external validation, OOD, Grad-CAM
 ├── Phase2_Edge.ipynb         # Phase 2: backbones × quantisation trade-offs, edge bundle, federated learning
-├── bcdc/                     # shared Python package used by the Phase 1 and 2 notebooks
+├── MODEL_CARD.md             # intended use, out-of-scope use, data, metrics, ethics, caveats
+├── pyproject.toml            # installable package: pip install -e ".[all]" -> `bcdc` command
+├── configs/                  # YAML training configs (one per backbone)
+├── spaces/                   # Hugging Face Space (Gradio demo): app.py, README, requirements
+├── bcdc/                     # the Python package (used by the notebooks, CLI, API and demo)
 │   ├── data.py               #   dataset discovery, image loading, duplicate hashing / matching
 │   ├── model.py              #   model architecture, features and logits from saved models
 │   ├── metrics.py            #   metrics, ECE, temperature scaling, risk–coverage
@@ -48,7 +57,16 @@ See the [Roadmap](#roadmap) for what comes next.
 │   ├── backbones.py          #   MobileNetV2/V3, EfficientNetB0, ConvNeXt-Tiny with correct input scaling
 │   ├── train.py              #   shared two-stage transfer-learning recipe
 │   ├── edge.py               #   TFLite export (FP32/FP16/dynamic/INT8), inference, latency, Pareto front
-│   └── federated.py          #   FedAvg / FedProx, IID and Dirichlet (non-IID) hospital splits
+│   ├── federated.py          #   FedAvg / FedProx, IID and Dirichlet (non-IID) hospital splits
+│   ├── split.py              #   data audit + leakage-aware split (Phase 0 logic as a library)
+│   ├── tracking.py           #   experiment tracking: local JSON, MLflow, Weights & Biases
+│   ├── deploy.py             #   deployment bundles: models + temperature + conformal + OOD settings
+│   ├── inference.py          #   Predictor used by the CLI, API and demo
+│   ├── dicom.py              #   DICOM -> image (modality LUT, VOI window, MONOCHROME1), no patient fields
+│   ├── report.py             #   retrieval-grounded explanation report with citations
+│   ├── knowledge/kb.json     #   curated, cited background passages (WHO CNS5, EANO, NCI PDQ, CBTRUS)
+│   ├── api.py · demo.py      #   FastAPI backend · Gradio demo
+│   └── cli.py                #   the `bcdc` command
 ├── edge/
 │   └── run_on_device.py      # standalone benchmark for Raspberry Pi / Jetson (NumPy + LiteRT only)
 ├── tests/                    # unit tests (pytest), run without any dataset
@@ -119,6 +137,43 @@ Outputs are written to `outputs/phase1/` (on Drive in Colab). They include `resu
 | **E. Federated learning** | Splits the training set across 4 simulated hospitals: **IID**, and **non-IID** with Dirichlet(0.5) label skew. Compares **centralised**, **FedAvg**, **FedProx** and **local-only** training, with the same model, learning rate and data passes. Reports accuracy, glioma sensitivity, calibration, conformal coverage and **communication cost**. |
 
 Some INT8 graphs, such as MobileNetV3's hard-swish, fail to prepare in LiteRT's default XNNPACK CPU delegate. The code then falls back to the built-in kernels and says so in the results, because this changes real-device latency.
+
+---
+
+## Phase 3: product
+
+The notebooks are for research. Phase 3 makes the same code usable outside Colab.
+
+**Install**
+
+```bash
+pip install -e ".[all]"        # or pick extras: data, edge, dicom, api, demo, tracking, dev
+```
+
+**Command-line workflow**
+
+| Command | What it does |
+|---|---|
+| `bcdc split --data DIR` | Data audit and leakage-aware split. Same algorithm as the Phase 0 notebook; writes `outputs/split.csv`. |
+| `bcdc train --config configs/mobilenet_v2.yaml` | Two-stage training over several seeds. Writes `models/seed_<n>.keras`, metrics and `model_meta.json` in the notebooks' layout, so CLI and notebook outputs are interchangeable. Logs to `runs/` (local), MLflow or Weights & Biases (`tracking.backend` in the config). |
+| `bcdc calibrate --artefacts outputs --out deploy` | Builds a **deployment bundle**: the ensemble temperature (val-A), class-conditional conformal thresholds (val-B), Mahalanobis OOD statistics and threshold, and an evaluation summary. `--tflite model.tflite` builds a single-model edge bundle instead; it has no OOD gate. |
+| `bcdc predict scan.dcm --bundle deploy` | Prints the prediction and the explanation report (`--json` for machine-readable output). |
+| `bcdc serve --bundle deploy` | Starts the **FastAPI** backend: `GET /health`, `GET /info`, `POST /predict` (multipart upload). Interactive docs at `/docs`. |
+| `bcdc demo --bundle deploy` | Starts the **Gradio** demo locally. `spaces/` contains the same demo packaged for **Hugging Face Spaces**. |
+
+Leaving out `--data` downloads the Kaggle dataset with `kagglehub`.
+
+**What every prediction includes**
+
+1. **OOD gate:** images unlike the training MRIs are refused, with no label.
+2. **Calibrated probabilities** from the ensemble (or the TFLite model).
+3. A **90% prediction set** (class-conditional conformal), e.g. *{Glioma, Meningioma}* when the model can't separate them.
+4. **Warnings:** colour image, low confidence, non-MR DICOM, multi-frame DICOM.
+5. A **grounded report.** Every background sentence is quoted verbatim from a curated passage, with a numbered citation: WHO 2021 CNS classification, EANO glioma and meningioma guidelines, NCI PDQ, CBTRUS. Passages are chosen by TF-IDF retrieval for the classes in the prediction set. There's no free-text generation, so the report can't invent medical claims. It ends with **questions to ask your doctor** and never gives cost, hospital or treatment advice.
+
+**DICOM:** applies the rescale slope/intercept and the stored VOI window (or a percentile window), inverts MONOCHROME1 images, and takes the middle frame of multi-frame files. Only technical fields (modality, size) appear in responses; patient name, ID and similar fields are never returned or logged. Uploads are processed in memory and not stored.
+
+**Model card:** [`MODEL_CARD.md`](MODEL_CARD.md) covers intended use, out-of-scope use, data (including what is *unknown*, such as demographics), metrics, ethical considerations and caveats.
 
 ---
 
@@ -211,7 +266,7 @@ Some INT8 graphs, such as MobileNetV3's hard-swish, fail to prepare in LiteRT's 
 
 All settings (seeds, split fractions, epochs, learning rates, duplicate thresholds, conformal α, OOD retention) are in each notebook's **Configuration** cell.
 
-**Running locally:** `pip install -r requirements.txt`. You'll need Kaggle API credentials for `kagglehub`. Unit tests (no datasets needed):
+**Running locally:** `pip install -e ".[all]"` (or `pip install -r requirements.txt`). You'll need Kaggle API credentials for `kagglehub`. Then follow the `bcdc` workflow in [Phase 3](#phase-3-product). Unit tests (no datasets needed):
 
 ```bash
 python -m pytest tests
@@ -249,6 +304,8 @@ python -m pytest tests
 - **One training seed per backbone in Phase 2,** so small differences between backbones may be noise.
 - **EfficientNetB0 stands in for EfficientNet-Lite,** which isn't in `keras.applications` and is designed to quantise better.
 - **The federated learning is a single-machine simulation:** hospitals are a split of one dataset, and there's no secure aggregation or differential privacy.
+- **The explanation report's knowledge base is small and hand-curated.** Its passages are general information paraphrased closely from the cited sources and have not yet been reviewed by a clinician.
+- **TFLite bundles have no OOD gate,** because the exported graph returns only probabilities.
 
 ---
 
@@ -286,11 +343,16 @@ python -m pytest tests
 
 *Alternatives considered: 3D segmentation on BraTS with MONAI/nnU-Net, or comparing medical foundation-model pretraining (RadImageNet, BiomedCLIP). Edge deployment was chosen because it best fits an AI + edge-computing background.*
 
-### Phase 3: Product
-- [ ] Finish moving from notebooks to a proper repo: training script, configs, experiment tracking (Weights & Biases / MLflow). The `bcdc/` package and tests are the start of this.
-- [ ] FastAPI backend and a Gradio demo on Hugging Face Spaces, with DICOM input
-- [ ] Model card: intended use, out-of-scope use, data, failure cases
-- [ ] A cited, retrieval-grounded explanation report (WHO CNS tumour classification, clinical guidelines), framed as *"questions to ask your neurologist"*, not advice. No cost or doctor information unless it comes from live, cited sources.
+### Phase 3: Product 🔄 *(code complete; demo not yet deployed)*
+- [x] Installable package and `bcdc` CLI: split, train (YAML configs, multi-seed), calibrate, predict, serve, demo
+- [x] Experiment tracking: local JSON, MLflow, Weights & Biases
+- [x] Deployment bundles (Keras ensemble with OOD gate, or a single TFLite model)
+- [x] FastAPI backend and Gradio demo with DICOM input; Hugging Face Space files in `spaces/`
+- [x] Model card
+- [x] Retrieval-grounded, cited explanation report framed as *questions to ask your doctor*; no cost or doctor recommendations
+- [ ] Deploy the Space with a trained bundle (after the first full training run)
+- [ ] CI (GitHub Actions running the unit tests) and a Docker image for the API
+- [ ] Have a clinician review the knowledge-base passages and report wording
 
 The long-term goal is a write-up on cross-dataset generalisation and calibration of edge models, and later a model trained across many kinds of medical data.
 
@@ -298,7 +360,7 @@ The long-term goal is a write-up on cross-dataset generalisation and calibration
 
 ## Tech stack
 
-Python · TensorFlow / Keras 3 · MobileNetV2/V3 · EfficientNet · ConvNeXt · TensorFlow Lite / LiteRT · scikit-learn · NumPy · pandas · Pillow · Matplotlib · h5py · SciPy · kagglehub · pytest · Google Colab
+Python · TensorFlow / Keras 3 · MobileNetV2/V3 · EfficientNet · ConvNeXt · TensorFlow Lite / LiteRT · FastAPI · Gradio · pydicom · MLflow / W&B · scikit-learn · NumPy · pandas · Pillow · Matplotlib · h5py · SciPy · kagglehub · pytest · Google Colab
 
 ## License
 

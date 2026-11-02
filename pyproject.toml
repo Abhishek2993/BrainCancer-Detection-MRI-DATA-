@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bcdc"
+version = "0.4.0"
+description = "BCDC: trustworthy, edge-ready brain-tumour MRI classification (research prototype)"
+readme = "Readme.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Abhishek Maurya" }]
+requires-python = ">=3.10"
+dependencies = [
+    "tensorflow>=2.16",
+    "numpy",
+    "pandas",
+    "pillow",
+    "scikit-learn",
+    "matplotlib",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+data = ["kagglehub", "h5py", "scipy"]
+edge = ["ai-edge-litert"]
+dicom = ["pydicom"]
+api = ["fastapi", "uvicorn", "python-multipart"]
+demo = ["gradio", "pydicom"]
+tracking = ["mlflow"]
+dev = ["pytest", "httpx"]
+all = ["bcdc[data,edge,dicom,api,demo,tracking,dev]"]
+
+[project.scripts]
+bcdc = "bcdc.cli:main"
+
+[project.urls]
+Repository = "https://github.com/Abhishek2993/BrainCancer-Detection-MRI-DATA-"
+
+[tool.setuptools]
+packages = ["bcdc"]
+
+[tool.setuptools.package-data]
+bcdc = ["knowledge/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

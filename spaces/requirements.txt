@@ -1,0 +1,2 @@
+bcdc[demo,dicom,edge] @ git+https://github.com/Abhishek2993/BrainCancer-Detection-MRI-DATA-.git
+huggingface_hub

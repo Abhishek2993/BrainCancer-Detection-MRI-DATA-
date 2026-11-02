@@ -1,13 +1,14 @@
 # BCDC: Brain Cancer Detection & Classification
 
-### Trustworthy 3-class brain-tumour MRI classification: leakage-aware evaluation, external validation, calibrated uncertainty, conformal prediction, OOD rejection and verified explanations
+### Trustworthy, edge-ready 3-class brain-tumour MRI classification: leakage-aware evaluation, external validation, calibrated uncertainty, conformal prediction, OOD rejection, verified explanations, INT8 edge deployment and federated learning
 
-![TensorFlow](https://img.shields.io/badge/TensorFlow-Keras%203-orange) ![Model](https://img.shields.io/badge/Model-MobileNetV2%20ensemble-purple) ![Platform](https://img.shields.io/badge/Platform-Google%20Colab-blue) ![Status](https://img.shields.io/badge/Status-Phase%201%20(rigour)-yellow) ![License](https://img.shields.io/badge/License-MIT-green)
+![TensorFlow](https://img.shields.io/badge/TensorFlow-Keras%203-orange) ![Model](https://img.shields.io/badge/Models-MobileNet%20%7C%20EfficientNet%20%7C%20ConvNeXt-purple) ![Edge](https://img.shields.io/badge/Edge-TFLite%20%2F%20LiteRT%20INT8-teal) ![Platform](https://img.shields.io/badge/Platform-Google%20Colab-blue) ![Status](https://img.shields.io/badge/Status-Phase%202%20(edge)-yellow) ![License](https://img.shields.io/badge/License-MIT-green)
 
 | Notebook | Open |
 |---|---|
 | **Phase 0:** training and evaluation (`Project_BCDCipynb.ipynb`) | <a href="https://colab.research.google.com/github/Abhishek2993/BrainCancer-Detection-MRI-DATA-/blob/main/Project_BCDCipynb.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a> |
 | **Phase 1:** rigour (`Phase1_Rigour.ipynb`) | <a href="https://colab.research.google.com/github/Abhishek2993/BrainCancer-Detection-MRI-DATA-/blob/main/Phase1_Rigour.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a> |
+| **Phase 2:** edge deployment and federated learning (`Phase2_Edge.ipynb`) | <a href="https://colab.research.google.com/github/Abhishek2993/BrainCancer-Detection-MRI-DATA-/blob/main/Phase2_Edge.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a> |
 
 ---
 
@@ -23,6 +24,7 @@ Most student projects aim for the highest possible accuracy number. This one aim
 
 - **Phase 0 (correctness):** duplicate audit, leakage-aware split, held-out test set, multi-seed results, clinically relevant per-class metrics, calibrated confidence.
 - **Phase 1 (rigour):** a deep ensemble with uncertainty estimates, **conformal prediction sets** with a coverage guarantee, **external validation** on a second dataset from different hospitals, **out-of-distribution rejection**, and **Grad-CAM checked against radiologist tumour masks**.
+- **Phase 2 (edge):** five lightweight backbones × four TFLite precisions (FP32, FP16, dynamic, **INT8**). For each variant: accuracy, glioma sensitivity, **calibration and conformal coverage**, size and latency, plus a Pareto front. Includes a **Raspberry Pi / Jetson benchmark bundle** and a **federated learning** simulation of hospitals training together without sharing scans.
 
 See the [Roadmap](#roadmap) for what comes next.
 
@@ -33,7 +35,8 @@ See the [Roadmap](#roadmap) for what comes next.
 ```
 ├── Project_BCDCipynb.ipynb   # Phase 0: audit, split, train (multi-seed), evaluate, calibrate
 ├── Phase1_Rigour.ipynb       # Phase 1: ensemble, conformal, external validation, OOD, Grad-CAM
-├── bcdc/                     # shared Python package used by the Phase 1 notebook
+├── Phase2_Edge.ipynb         # Phase 2: backbones × quantisation trade-offs, edge bundle, federated learning
+├── bcdc/                     # shared Python package used by the Phase 1 and 2 notebooks
 │   ├── data.py               #   dataset discovery, image loading, duplicate hashing / matching
 │   ├── model.py              #   model architecture, features and logits from saved models
 │   ├── metrics.py            #   metrics, ECE, temperature scaling, risk–coverage
@@ -41,7 +44,13 @@ See the [Roadmap](#roadmap) for what comes next.
 │   ├── conformal.py          #   split-conformal sets: LAC, APS, class-conditional
 │   ├── ood.py                #   MSP, energy and Mahalanobis OOD scores + metrics
 │   ├── gradcam.py            #   Grad-CAM + pointing game, energy-in-mask, IoU, baselines
-│   └── figshare.py           #   loader for the Figshare (Cheng et al.) dataset
+│   ├── figshare.py           #   loader for the Figshare (Cheng et al.) dataset
+│   ├── backbones.py          #   MobileNetV2/V3, EfficientNetB0, ConvNeXt-Tiny with correct input scaling
+│   ├── train.py              #   shared two-stage transfer-learning recipe
+│   ├── edge.py               #   TFLite export (FP32/FP16/dynamic/INT8), inference, latency, Pareto front
+│   └── federated.py          #   FedAvg / FedProx, IID and Dirichlet (non-IID) hospital splits
+├── edge/
+│   └── run_on_device.py      # standalone benchmark for Raspberry Pi / Jetson (NumPy + LiteRT only)
 ├── tests/                    # unit tests (pytest), run without any dataset
 ├── requirements.txt
 └── LICENSE
@@ -97,6 +106,22 @@ Outputs are written to `outputs/phase1/` (on Drive in Colab). They include `resu
 
 ---
 
+## Phase 2: edge-efficient, trustworthy diagnosis
+
+`Phase2_Edge.ipynb` uses the same split and training recipe as Phase 0:
+
+| Section | What it does |
+|---|---|
+| **A. Backbone benchmark** | Trains **MobileNetV2, MobileNetV3-Small, MobileNetV3-Large, EfficientNetB0 and ConvNeXt-Tiny**, each with the input scaling it was pretrained with. The Phase 0 MobileNetV2 is reused. Models are saved to Drive as they finish, so an interrupted run can resume. |
+| **B. Quantisation** | Exports each model to TensorFlow Lite as **FP32, FP16, dynamic-range and full INT8**. INT8 is calibrated on 200 training images and takes uint8 RGB input. |
+| **C. Trade-offs** | For every variant: test accuracy, macro-F1, **glioma sensitivity**, ECE (after a per-variant temperature), **class-conditional conformal coverage and set size**, agreement with FP32, file size, and single-image CPU latency (1 and 4 threads). Plots accuracy, calibration and set size against latency and size, and marks the **Pareto front**. Also tests whether **conformal thresholds survive INT8** or must be recalibrated. The deployed model is the most accurate on *validation* within a latency budget. |
+| **D. Edge bundle** | `bcdc_edge_bundle.zip` contains the INT8 and FP16 models, 300 test images, the per-model temperatures and conformal thresholds, and `run_on_device.py`. On a **Raspberry Pi or Jetson** it measures real latency, accuracy, ECE and coverage with only `numpy` + `ai-edge-litert`. |
+| **E. Federated learning** | Splits the training set across 4 simulated hospitals: **IID**, and **non-IID** with Dirichlet(0.5) label skew. Compares **centralised**, **FedAvg**, **FedProx** and **local-only** training, with the same model, learning rate and data passes. Reports accuracy, glioma sensitivity, calibration, conformal coverage and **communication cost**. |
+
+Some INT8 graphs, such as MobileNetV3's hard-swish, fail to prepare in LiteRT's default XNNPACK CPU delegate. The code then falls back to the built-in kernels and says so in the results, because this changes real-device latency.
+
+---
+
 ## Datasets
 
 **Training and internal test: [Brain Cancer MRI dataset](https://www.kaggle.com/datasets/orvile/brain-cancer-mri-dataset)** (Kaggle, `orvile/brain-cancer-mri-dataset`)
@@ -120,7 +145,7 @@ Outputs are written to `outputs/phase1/` (on Drive in Colab). They include `resu
 
 ## Results
 
-> **Not yet reported.** Numbers will be added after the first full GPU run of both notebooks. Phase 0 writes `outputs/results_summary.md`, and Phase 1 writes `outputs/phase1/results_phase1.md`. Paste them here.
+> **Not yet reported.** Numbers will be added after the first full GPU run of the notebooks. Phase 0 writes `outputs/results_summary.md`, Phase 1 writes `outputs/phase1/results_phase1.md`, Phase 2 writes `outputs/phase2/results_phase2.md`, and the device script writes `device_results.json`. Paste them here.
 
 **Phase 0** (internal test set, mean ± std over seeds):
 
@@ -150,6 +175,23 @@ Outputs are written to `outputs/phase1/` (on Drive in Colab). They include `resu
 | Legitimate scans wrongly rejected by OOD gate | — | — |
 | Grad-CAM pointing game (vs centre-prior baseline) | n/a | — |
 
+**Phase 2** (internal test set; latency on the Colab CPU and on a Raspberry Pi):
+
+| Variant | Accuracy | Glioma sensitivity | ECE | Conformal coverage / set size | Size (MB) | Latency, Colab CPU (ms) | Latency, Raspberry Pi (ms) |
+|---|---|---|---|---|---|---|---|
+| MobileNetV2 FP32 | — | — | — | — | — | — | — |
+| MobileNetV2 INT8 | — | — | — | — | — | — | — |
+| MobileNetV3-Small INT8 | — | — | — | — | — | — | — |
+| EfficientNetB0 INT8 | — | — | — | — | — | — | — |
+| ConvNeXt-Tiny FP16 | — | — | — | — | — | — | — |
+
+| Federated (4 hospitals) | Accuracy | Glioma sensitivity | Communication (MB) |
+|---|---|---|---|
+| Centralised | — | — | 0 |
+| FedAvg (non-IID) | — | — | — |
+| FedProx (non-IID) | — | — | — |
+| Local only (non-IID, mean) | — | — | 0 |
+
 **About the earlier 92.9% figure:** a previous version reported 92.9% *validation* accuracy. That number came from a frozen MobileNetV2 trained for only 3 epochs, with a random image-level split (duplicates could leak between train and validation), the wrong input scaling, and no held-out test set. It has been withdrawn and shouldn't be compared with the new results.
 
 ---
@@ -158,7 +200,14 @@ Outputs are written to `outputs/phase1/` (on Drive in Colab). They include `resu
 
 1. Open **Phase 0** in Colab (badge above). Choose *Runtime → Change runtime type → **T4 GPU***, then *Run all* (about 30–60 minutes for 3 seeds). Allow Google Drive access when asked, so the models are saved to `MyDrive/BCDC/outputs`.
 2. Open **Phase 1** in Colab, with the same GPU setting, and *Run all* (about 20–40 minutes). It clones this repo for the `bcdc` package, loads the Phase 0 models from Drive, and downloads Figshare and CIFAR-10.
-3. Paste `results_summary.md` and `phase1/results_phase1.md` into the Results section above.
+3. Open **Phase 2** in Colab (T4 GPU) and *Run all*. Training five backbones and the federated runs take roughly 1.5–2.5 hours. Everything is saved to Drive as it finishes, so after a disconnect you can just *Run all* again.
+4. **On a Raspberry Pi / Jetson:** copy `MyDrive/BCDC/outputs/phase2/bcdc_edge_bundle.zip` to the device, then:
+   ```bash
+   pip install numpy ai-edge-litert
+   unzip bcdc_edge_bundle.zip && cd bcdc_edge_bundle
+   python run_on_device.py --threads 4
+   ```
+5. Paste `results_summary.md`, `phase1/results_phase1.md`, `phase2/results_phase2.md` and the device numbers into the Results section above.
 
 All settings (seeds, split fractions, epochs, learning rates, duplicate thresholds, conformal α, OOD retention) are in each notebook's **Configuration** cell.
 
@@ -196,6 +245,10 @@ python -m pytest tests
 - **Grad-CAM is coarse** (a 7×7 map). Good localisation shows the model *uses* the tumour region, not *how* it decides.
 - **No healthy class.** The model always names a tumour type for images it accepts.
 - **2D slices only:** no 3D, multi-sequence MRI (T1, T1ce, T2, FLAIR).
+- **Phase 2 latency on Colab is only a ranking.** Edge claims rest on the Raspberry Pi / Jetson numbers from `run_on_device.py`.
+- **One training seed per backbone in Phase 2,** so small differences between backbones may be noise.
+- **EfficientNetB0 stands in for EfficientNet-Lite,** which isn't in `keras.applications` and is designed to quantise better.
+- **The federated learning is a single-machine simulation:** hospitals are a split of one dataset, and there's no secure aggregation or differential privacy.
 
 ---
 
@@ -220,11 +273,16 @@ python -m pytest tests
 - [ ] **Phase 1b: "no tumour" class** without dataset shortcuts: intensity normalisation, skull-stripping, and a check of whether the model can guess which dataset an image came from
 - [ ] Reduce the external performance drop (e.g. intensity standardisation, stronger augmentation), then re-measure
 
-### Phase 2: Headline direction: edge-efficient, trustworthy diagnosis
-- [ ] Benchmark lightweight backbones (MobileNetV3, EfficientNet-Lite, small ConvNeXt)
-- [ ] INT8 quantisation with TFLite / ONNX; run on Raspberry Pi or Jetson
-- [ ] Plot accuracy, calibration, conformal set size and latency against each other
-- [ ] Federated learning (e.g. Flower) to simulate several hospitals training without sharing scans
+### Phase 2: Headline direction: edge-efficient, trustworthy diagnosis 🔄 *(code complete; awaiting first full run)*
+- [x] Benchmark lightweight backbones: MobileNetV2, MobileNetV3-Small/Large, EfficientNetB0 (EfficientNet-Lite stand-in), ConvNeXt-Tiny
+- [x] TFLite export in FP32, FP16, dynamic-range and full INT8, with XNNPACK fallback detection
+- [x] Plot accuracy, calibration, conformal set size and latency against each other; Pareto front; conformal coverage under INT8 (reused vs recalibrated thresholds)
+- [x] Edge bundle + `run_on_device.py` benchmark (NumPy + LiteRT only)
+- [x] Federated learning simulation: FedAvg and FedProx vs centralised and local-only, IID and non-IID hospitals, communication cost
+- [ ] Run the bundle on a Raspberry Pi / Jetson and publish the device numbers
+- [ ] ONNX Runtime export as a second deployment path
+- [ ] Real multi-machine federation with Flower, plus secure aggregation / differential privacy
+- [ ] Phase 1 external validation (Figshare) of the chosen edge model
 
 *Alternatives considered: 3D segmentation on BraTS with MONAI/nnU-Net, or comparing medical foundation-model pretraining (RadImageNet, BiomedCLIP). Edge deployment was chosen because it best fits an AI + edge-computing background.*
 
@@ -240,7 +298,7 @@ The long-term goal is a write-up on cross-dataset generalisation and calibration
 
 ## Tech stack
 
-Python · TensorFlow / Keras 3 · MobileNetV2 · scikit-learn · NumPy · pandas · Pillow · Matplotlib · h5py · SciPy · kagglehub · pytest · Google Colab
+Python · TensorFlow / Keras 3 · MobileNetV2/V3 · EfficientNet · ConvNeXt · TensorFlow Lite / LiteRT · scikit-learn · NumPy · pandas · Pillow · Matplotlib · h5py · SciPy · kagglehub · pytest · Google Colab
 
 ## License
 

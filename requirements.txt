@@ -8,6 +8,7 @@ scikit-learn
 kagglehub
 h5py
 scipy
+ai-edge-litert   # TFLite interpreter (LiteRT); falls back to tf.lite if missing
 
 # development
 pytest

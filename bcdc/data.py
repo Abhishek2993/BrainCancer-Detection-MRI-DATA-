@@ -70,6 +70,39 @@ def path_dataset(paths, img_size, batch_size=32):
     return ds.map(load, num_parallel_calls=tf.data.AUTOTUNE).batch(batch_size).prefetch(tf.data.AUTOTUNE)
 
 
+def labeled_path_dataset(paths, labels, img_size, batch_size=32, shuffle=False, seed=0, cache=True):
+    """(image, label) batches for training/evaluation. Images are float32 RGB in [0, 255];
+    decoded images are cached as uint8 to keep memory small (same pipeline as Phase 0)."""
+    tf = _tf()
+
+    def load(p, y):
+        img = tf.io.decode_image(tf.io.read_file(p), channels=3, expand_animations=False)
+        return tf.saturate_cast(_resize_round(tf.cast(img, tf.float32), img_size), tf.uint8), y
+
+    ds = tf.data.Dataset.from_tensor_slices(([str(p) for p in paths], np.asarray(labels, dtype="int32")))
+    ds = ds.map(load, num_parallel_calls=tf.data.AUTOTUNE)
+    if cache:
+        ds = ds.cache()
+    if shuffle:
+        ds = ds.shuffle(len(paths), seed=seed, reshuffle_each_iteration=True)
+    ds = ds.map(lambda x, y: (tf.cast(x, tf.float32), y))
+    return ds.batch(batch_size).prefetch(tf.data.AUTOTUNE)
+
+
+def split_validation(split: pd.DataFrame, seed: int = 0) -> pd.DataFrame:
+    """Splits the Phase 0 validation set, by duplicate group, into halves "valA" and "valB"
+    (identical to the Phase 1 notebook). val-A tunes temperatures/thresholds; val-B calibrates
+    conformal sets."""
+    split = split.copy()
+    groups = np.array(sorted(split.loc[split["split"] == "val", "group"].unique()))
+    np.random.default_rng(seed).shuffle(groups)
+    half_a = set(groups[: len(groups) // 2])
+    is_val = split["split"] == "val"
+    split.loc[is_val & split["group"].isin(half_a), "split"] = "valA"
+    split.loc[is_val & ~split["group"].isin(half_a), "split"] = "valB"
+    return split
+
+
 def array_dataset(images, img_size, batch_size=32):
     """Batches of float32 RGB images in [0, 255] from a uint8 array (N,H,W) or (N,H,W,3)."""
     tf = _tf()

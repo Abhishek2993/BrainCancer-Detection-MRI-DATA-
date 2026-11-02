@@ -13,35 +13,19 @@ import numpy as np
 
 
 def build_model(num_classes, img_size=(224, 224), weights="imagenet", seed=0):
-    """Same architecture as the Phase 0 notebook. Returns (model, backbone)."""
-    import tensorflow as tf
-    from tensorflow import keras
-    from tensorflow.keras import layers
+    """The Phase 0 MobileNetV2 classifier. Returns (model, backbone)."""
+    from .backbones import build_classifier
 
-    keras.backend.clear_session()
-    tf.keras.utils.set_random_seed(seed)
-    augment = keras.Sequential([
-        layers.RandomFlip("horizontal", seed=seed),
-        layers.RandomRotation(0.05, fill_mode="constant", seed=seed),
-        layers.RandomZoom(0.1, fill_mode="constant", seed=seed),
-        layers.RandomContrast(0.1, seed=seed),
-    ], name="augmentation")
-    base = keras.applications.MobileNetV2(include_top=False, weights=weights,
-                                          input_shape=tuple(img_size) + (3,))
-    base.trainable = False
-    inputs = keras.Input(shape=tuple(img_size) + (3,), name="image_rgb_0_255")
-    x = augment(inputs)
-    x = layers.Rescaling(1 / 127.5, offset=-1, name="mobilenet_v2_preprocess")(x)
-    x = base(x, training=False)
-    x = layers.GlobalAveragePooling2D()(x)
-    x = layers.Dropout(0.3, seed=seed)(x)
-    outputs = layers.Dense(num_classes, activation="softmax", name="probs")(x)
-    return keras.Model(inputs, outputs, name="bcdc_mobilenetv2"), base
+    return build_classifier("mobilenet_v2", num_classes, img_size, weights, seed)
+
+
+def _identity(x):
+    return x
 
 
 @dataclass
 class ModelParts:
-    preprocess: object   # Rescaling layer
+    preprocess: object   # Rescaling layer, or identity when the backbone scales its own input
     backbone: object     # MobileNetV2 (include_top=False)
     pool: object         # GlobalAveragePooling2D
     W: np.ndarray        # (features, classes) dense kernel
@@ -53,7 +37,8 @@ def model_parts(model) -> ModelParts:
     from tensorflow import keras
     from tensorflow.keras import layers
 
-    pre = next(l for l in model.layers if isinstance(l, layers.Rescaling))
+    pre = next((l for l in model.layers if isinstance(l, layers.Rescaling)), None)
+    pre = _identity if pre is None else pre
     base = next(l for l in model.layers if isinstance(l, keras.Model) and l.name != "augmentation"
                 and not isinstance(l, keras.Sequential))
     pool = next(l for l in model.layers if isinstance(l, layers.GlobalAveragePooling2D))

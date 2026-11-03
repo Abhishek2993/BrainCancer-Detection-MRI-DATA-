@@ -1,0 +1,100 @@
+name: docker
+
+# Builds the API image, starts it with a tiny untrained bundle and checks /health, /info and
+# /predict. On pushes to main and on version tags, the tested image is pushed to
+# ghcr.io/<owner>/bcdc-api.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Image name (GHCR needs lowercase)
+        run: echo "IMAGE=ghcr.io/${OWNER,,}/bcdc-api" >> "$GITHUB_ENV"
+        env:
+          OWNER: ${{ github.repository_owner }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: bcdc-api:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Make an untrained smoke-test bundle inside the image
+        run: |
+          mkdir -p "$RUNNER_TEMP/smoke"
+          docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
+            -v "$RUNNER_TEMP/smoke:/out" bcdc-api:test python -m bcdc.smoke /out
+
+      - name: Start the API and wait until it is healthy
+        run: |
+          docker run -d --name bcdc -p 8000:8000 -v "$RUNNER_TEMP/smoke/bundle:/bundle:ro" bcdc-api:test
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8000/health; then echo; exit 0; fi
+            sleep 2
+          done
+          docker logs bcdc
+          exit 1
+
+      - name: Check /info and /predict
+        run: |
+          curl -fsS http://127.0.0.1:8000/info | python -c "import json,sys; d=json.load(sys.stdin); assert len(d['classes']) == 3 and d['ood_gate']; print('info ok')"
+          curl -fsS -F "file=@$RUNNER_TEMP/smoke/sample.png" http://127.0.0.1:8000/predict \
+            | python -c "import json,sys; d=json.load(sys.stdin); assert 'prediction' in d and 'markdown' in d['report']; print('predict ok:', d['prediction']['rejected'], d['prediction']['top_class'])"
+          code=$(curl -s -o /dev/null -w '%{http_code}' -F "file=@Readme.md;filename=x.png" http://127.0.0.1:8000/predict)
+          test "$code" = "415" && echo "bad upload rejected with 415"
+
+      - name: Container logs
+        if: always()
+        run: docker logs bcdc || true
+
+      - name: Image tags
+        id: meta
+        if: github.event_name != 'pull_request'
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+            type=semver,pattern={{version}}
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha

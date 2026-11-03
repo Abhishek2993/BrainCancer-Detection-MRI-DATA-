@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 import json
+import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -70,6 +71,9 @@ class Predictor:
         self.qhat = np.asarray([np.inf if q is None else q for q in self.cfg["conformal"]["qhat"]], dtype=float)
         self.alpha = float(self.cfg["conformal"]["alpha"])
         self.backend = self.cfg["backend"]
+        # The API serves requests from a thread pool; TFLite interpreters are not thread-safe,
+        # so model calls are serialised.
+        self._lock = threading.Lock()
         if self.backend == "keras":
             from tensorflow import keras
 
@@ -103,6 +107,10 @@ class Predictor:
         if not looks_like_grayscale(img):
             warnings.append("The image is in colour; MRI slices are grayscale.")
         x = self._array(img)
+        with self._lock:
+            return self._predict_array(x, warnings, info)
+
+    def _predict_array(self, x, warnings, info) -> Prediction:
         epistemic, ood_score = None, None
         if self.backend == "keras":
             feats = [fm(x, training=False).numpy() for _, fm in self.members]

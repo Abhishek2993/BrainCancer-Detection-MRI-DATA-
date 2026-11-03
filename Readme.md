@@ -2,7 +2,7 @@
 
 ### Trustworthy, edge-ready 3-class brain-tumour MRI classification: leakage-aware evaluation, external validation, calibrated uncertainty, conformal prediction, OOD rejection, verified explanations, INT8 edge deployment, federated learning, plus a CLI, REST API and demo with DICOM input and cited explanation reports
 
-![TensorFlow](https://img.shields.io/badge/TensorFlow-Keras%203-orange) ![Model](https://img.shields.io/badge/Models-MobileNet%20%7C%20EfficientNet%20%7C%20ConvNeXt-purple) ![Edge](https://img.shields.io/badge/Edge-TFLite%20%2F%20LiteRT%20INT8-teal) ![Platform](https://img.shields.io/badge/Platform-Google%20Colab-blue) ![Status](https://img.shields.io/badge/Status-Phase%203%20(product)-yellow) ![API](https://img.shields.io/badge/API-FastAPI-009688) ![Demo](https://img.shields.io/badge/Demo-Gradio-orange) ![License](https://img.shields.io/badge/License-MIT-green)
+[![tests](https://github.com/Abhishek2993/BrainCancer-Detection-MRI-DATA-/actions/workflows/tests.yml/badge.svg)](https://github.com/Abhishek2993/BrainCancer-Detection-MRI-DATA-/actions/workflows/tests.yml) [![docker](https://github.com/Abhishek2993/BrainCancer-Detection-MRI-DATA-/actions/workflows/docker.yml/badge.svg)](https://github.com/Abhishek2993/BrainCancer-Detection-MRI-DATA-/actions/workflows/docker.yml) ![TensorFlow](https://img.shields.io/badge/TensorFlow-Keras%203-orange) ![Model](https://img.shields.io/badge/Models-MobileNet%20%7C%20EfficientNet%20%7C%20ConvNeXt-purple) ![Edge](https://img.shields.io/badge/Edge-TFLite%20%2F%20LiteRT%20INT8-teal) ![Platform](https://img.shields.io/badge/Platform-Google%20Colab-blue) ![Status](https://img.shields.io/badge/Status-Phase%203%20(product)-yellow) ![API](https://img.shields.io/badge/API-FastAPI-009688) ![Demo](https://img.shields.io/badge/Demo-Gradio-orange) ![License](https://img.shields.io/badge/License-MIT-green)
 
 | Notebook | Open |
 |---|---|
@@ -42,6 +42,10 @@ See the [Roadmap](#roadmap) for what comes next.
 ├── Phase1_Rigour.ipynb       # Phase 1: ensemble, conformal, external validation, OOD, Grad-CAM
 ├── Phase2_Edge.ipynb         # Phase 2: backbones × quantisation trade-offs, edge bundle, federated learning
 ├── MODEL_CARD.md             # intended use, out-of-scope use, data, metrics, ethics, caveats
+├── Dockerfile                # API image (FastAPI + uvicorn, non-root, health check)
+├── constraints-docker.txt    # exact package versions for reproducible images
+├── .github/workflows/        # CI: tests.yml (pytest on Python 3.11/3.12, notebook check), docker.yml
+├── scripts/check_notebooks.py  # CI check: notebooks have no stored outputs and their code parses
 ├── pyproject.toml            # installable package: pip install -e ".[all]" -> `bcdc` command
 ├── configs/                  # YAML training configs (one per backbone)
 ├── spaces/                   # Hugging Face Space (Gradio demo): app.py, README, requirements
@@ -172,6 +176,20 @@ Leaving out `--data` downloads the Kaggle dataset with `kagglehub`.
 5. A **grounded report.** Every background sentence is quoted verbatim from a curated passage, with a numbered citation: WHO 2021 CNS classification, EANO glioma and meningioma guidelines, NCI PDQ, CBTRUS. Passages are chosen by TF-IDF retrieval for the classes in the prediction set. There's no free-text generation, so the report can't invent medical claims. It ends with **questions to ask your doctor** and never gives cost, hospital or treatment advice.
 
 **DICOM:** applies the rescale slope/intercept and the stored VOI window (or a percentile window), inverts MONOCHROME1 images, and takes the middle frame of multi-frame files. Only technical fields (modality, size) appear in responses; patient name, ID and similar fields are never returned or logged. Uploads are processed in memory and not stored.
+
+**Docker (API):** the image serves the FastAPI backend on port 8000. It runs as a non-root user and has a built-in health check. The deployment bundle is **mounted at run time**, so one image serves any trained model:
+
+```bash
+docker build -t bcdc-api .
+docker run --rm -p 8000:8000 -v "$PWD/deploy:/bundle:ro" bcdc-api      # then open http://localhost:8000/docs
+```
+
+Pre-built images are published by CI to `ghcr.io/abhishek2993/bcdc-api` (`latest` on `main`, plus a tag per commit and per release). Package versions are pinned by `constraints-docker.txt`. The image is about 3.7 GB, mostly TensorFlow (1.9 GB), which the Keras ensemble needs. To check the serving stack without a trained model, build a tiny untrained bundle with `python -m bcdc.smoke OUT_DIR`; CI does this on every run.
+
+**Continuous integration** (GitHub Actions):
+
+- **`tests.yml`** runs the unit tests on Python 3.11 and 3.12, and checks that the notebooks have no stored outputs and that their code parses. It runs on every push to `main` and every pull request.
+- **`docker.yml`** builds the image, starts it with the untrained smoke bundle, and checks `/health`, `/info`, `/predict` and a rejected bad upload. Then it pushes the tested image to GHCR, except for pull requests.
 
 **Model card:** [`MODEL_CARD.md`](MODEL_CARD.md) covers intended use, out-of-scope use, data (including what is *unknown*, such as demographics), metrics, ethical considerations and caveats.
 
@@ -343,7 +361,7 @@ python -m pytest tests
 
 *Alternatives considered: 3D segmentation on BraTS with MONAI/nnU-Net, or comparing medical foundation-model pretraining (RadImageNet, BiomedCLIP). Edge deployment was chosen because it best fits an AI + edge-computing background.*
 
-### Phase 3: Product 🔄 *(code complete; demo not yet deployed)*
+### Phase 3: Product 🔄 *(code, CI and Docker complete; demo not yet deployed)*
 - [x] Installable package and `bcdc` CLI: split, train (YAML configs, multi-seed), calibrate, predict, serve, demo
 - [x] Experiment tracking: local JSON, MLflow, Weights & Biases
 - [x] Deployment bundles (Keras ensemble with OOD gate, or a single TFLite model)
@@ -351,7 +369,8 @@ python -m pytest tests
 - [x] Model card
 - [x] Retrieval-grounded, cited explanation report framed as *questions to ask your doctor*; no cost or doctor recommendations
 - [ ] Deploy the Space with a trained bundle (after the first full training run)
-- [ ] CI (GitHub Actions running the unit tests) and a Docker image for the API
+- [x] CI: GitHub Actions for unit tests (Python 3.11/3.12) and notebook checks
+- [x] Docker image for the API: pinned versions, non-root, health check, smoke-tested in CI and published to GHCR
 - [ ] Have a clinician review the knowledge-base passages and report wording
 
 The long-term goal is a write-up on cross-dataset generalisation and calibration of edge models, and later a model trained across many kinds of medical data.

@@ -1,0 +1,19 @@
+# Only pyproject.toml, Readme.md, LICENSE and bcdc/ are needed in the image.
+.git
+.github
+*.ipynb
+outputs/
+data/
+deploy/
+runs/
+mlruns/
+mlflow.db
+tests/
+edge/
+spaces/
+configs/
+scripts/
+**/__pycache__
+**/.pytest_cache
+*.egg-info
+build/
